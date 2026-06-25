@@ -4,12 +4,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV DISPLAY=:1
 ENV HOME=/root
 
-# Install semua packages (tambah tigervnc-common untuk vncpasswd)
+# Install semua packages
 RUN apt-get update && apt-get install -y \
     xvfb \
     x11vnc \
     websockify \
-    tigervnc-common \
     openjdk-17-jre \
     wget \
     unzip \
@@ -45,9 +44,11 @@ RUN wget -q -O /tmp/microemu.zip \
 RUN wget -q -O /opt/microemulator/avatar.jar \
     https://files.catbox.moe/6q19o1.zip
 
-# Create VNC password file using vncpasswd (non-interactive)
+# Create VNC password file manually (format x11vnc)
+# Password: 123456
 RUN mkdir -p /root/.vnc && \
-    echo "123456" | vncpasswd -f > /root/.vnc/passwd && \
+    echo -n "123456" | x11vnc -storepasswd /root/.vnc/passwd 2>/dev/null || \
+    (printf "123456\n123456\n" | x11vnc -storepasswd /root/.vnc/passwd 2>/dev/null) && \
     chmod 600 /root/.vnc/passwd
 
 # === BUAT SEMUA SCRIPT ===
@@ -152,7 +153,7 @@ pkill x11vnc 2>/dev/null
 pkill websockify 2>/dev/null
 sleep 1
 
-echo "$NEWPASS" | vncpasswd -f > "$PASS_FILE"
+printf "$NEWPASS\n$NEWPASS\n" | x11vnc -storepasswd "$PASS_FILE" 2>/dev/null
 chmod 600 "$PASS_FILE"
 
 export DISPLAY=:1
