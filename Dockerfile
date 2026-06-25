@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     xvfb \
     x11vnc \
     novnc \
+    tigervnc-common \
     websockify \
     openjdk-17-jre \
     wget \
