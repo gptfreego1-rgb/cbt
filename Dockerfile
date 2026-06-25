@@ -77,7 +77,7 @@ echo
 echo "Password berhasil diganti."
 EOF
 
-RUN chmod +x /usr/local/bin/ganti-password
+RUN chmod +x /usr/local/bin/password
 
 # Script start
 RUN cat >/root/start.sh <<'EOF'
