@@ -46,7 +46,7 @@ RUN wget -q -O /opt/microemulator/avatar.jar \
 
 # === SCRIPTS ===
 
-# 1. start.sh - OPTIMIZED
+# 1. start.sh - OPTIMIZED & FIXED
 RUN cat >/usr/local/bin/start.sh <<'EOF'
 #!/bin/bash
 echo "====================================="
@@ -66,41 +66,32 @@ Xvfb :1 -screen 0 800x600x16 -ac -nolisten tcp -noreset &
 export DISPLAY=:1
 sleep 2
 
-# Start x11vnc dengan optimasi bandwidth
+# Start x11vnc dengan optimasi bandwidth (opsi yang valid)
 x11vnc -display :1 \
        -forever \
        -passwd 123456 \
        -shared \
        -rfbport 5901 \
        -auth /root/.Xauthority \
-       -compresslevel 9 \
-       -quality 5 \
-       -nocursor \
+       -nowf \
        -noxdamage \
        -xkb \
-       -skip_duplicate_frames \
        -defer 50 \
        -wait 30 \
-       -noncache \
-       -nodisplay_correction \
-       -nocursorpos \
-       -nosel \
-       -ncache 0 \
-       -speeds modem &
+       -speeds modem \
+       -tightfilexfer \
+       -norepeat &
 sleep 2
 
-# Start websockify dengan optimasi
-websockify --web=/opt/novnc 6080 localhost:5901 \
-    --heartbeat=60 \
-    --max-debug=0 \
-    --idle-timeout=600 &
+# Start websockify (tanpa opsi yang tidak dikenal)
+websockify --web=/opt/novnc 6080 localhost:5901 &
 sleep 2
 
 # Start JWM
 jwm &
 sleep 2
 
-# Start ROX-Filer pinboard (tanpa refresh berlebihan)
+# Start ROX-Filer pinboard
 rox -p /root/.config/rox.sourceforge.net/ROX-Filer/pinboard &
 
 echo ""
@@ -112,13 +103,11 @@ echo "🔑 Password: 123456"
 echo "📌 Desktop: Avatar | Ganti Password | Terminal | Logout"
 echo "====================================="
 
-# Monitor CPU usage minimal
-while true; do
-    sleep 60
-done
+# Keep running
+tail -f /dev/null
 EOF
 
-# 2. password.sh
+# 2. password.sh - FIXED
 RUN cat >/usr/local/bin/password.sh <<'EOF'
 #!/bin/bash
 
@@ -164,12 +153,9 @@ sleep 1
 
 export DISPLAY=:1
 x11vnc -display :1 -forever -passwd "$NEWPASS" -shared -rfbport 5901 \
-    -compresslevel 9 -quality 5 -nocursor -noxdamage -skip_duplicate_frames \
-    -defer 50 -wait 30 -noncache -nodisplay_correction -nocursorpos \
-    -nosel -ncache 0 -speeds modem &
+    -nowf -noxdamage -defer 50 -wait 30 -speeds modem -tightfilexfer -norepeat &
 
-websockify --web=/opt/novnc 6080 localhost:5901 \
-    --heartbeat=60 --max-debug=0 --idle-timeout=600 &
+websockify --web=/opt/novnc 6080 localhost:5901 &
 
 kill $PROGRESS_PID 2>/dev/null
 
@@ -253,7 +239,7 @@ EOF
 
 RUN chmod +x /root/Desktop/*.desktop
 
-# === JWM CONFIG - OPTIMIZED ===
+# === JWM CONFIG - FIXED XML ===
 RUN cat >/root/.jwmrc <<'EOF'
 <?xml version="1.0"?>
 <JWM>
@@ -268,13 +254,16 @@ RUN cat >/root/.jwmrc <<'EOF'
         <Exit label="Exit JWM" icon="system-shutdown" confirm="true"/>
     </RootMenu>
 
-    <TaskList/>
+    <TaskList>
+        <Font>DejaVu Sans-9</Font>
+    </TaskList>
+
     <Tray x="0" y="-1" height="24" autohide="off">
         <TrayButton icon="menu">root:3</TrayButton>
         <Spacer width="3"/>
         <TaskList/>
         <Dock/>
-        <Clock format="%H:%M">xclock</Clock>
+        <Clock format="%H:%M"/>
     </Tray>
 
     <WindowStyle>
@@ -307,7 +296,7 @@ RUN cat >/root/.jwmrc <<'EOF'
 </JWM>
 EOF
 
-# === ROX-Filer PINBOARD - OPTIMIZED ===
+# === ROX-Filer PINBOARD ===
 RUN cat >/root/.config/rox.sourceforge.net/ROX-Filer/pinboard <<'EOF'
 <?xml version="1.0"?>
 <pinboard>
@@ -319,7 +308,7 @@ RUN cat >/root/.config/rox.sourceforge.net/ROX-Filer/pinboard <<'EOF'
 </pinboard>
 EOF
 
-# Hapus Options file yang error dan biarkan ROX-Filer buat sendiri
+# Hapus Options file yang error
 RUN rm -f /root/.config/rox.sourceforge.net/ROX-Filer/Options
 
 EXPOSE 6080
