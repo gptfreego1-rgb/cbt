@@ -21,7 +21,6 @@ RUN apt-get update && apt-get install -y \
     procps \
     fontconfig \
     fonts-dejavu \
-    openssl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -44,12 +43,6 @@ RUN wget -q -O /tmp/microemu.zip \
 # Download Avatar
 RUN wget -q -O /opt/microemulator/avatar.jar \
     https://files.catbox.moe/6q19o1.zip
-
-# Create VNC password file manually using openssl
-# Password: 123456
-RUN mkdir -p /root/.vnc && \
-    printf "123456" | openssl passwd -1 -stdin > /root/.vnc/passwd && \
-    chmod 600 /root/.vnc/passwd
 
 # === BUAT SEMUA SCRIPT ===
 
@@ -152,7 +145,6 @@ pkill x11vnc 2>/dev/null
 pkill websockify 2>/dev/null
 sleep 1
 
-# Update password (x11vnc直接用-passwd参数,不需要file)
 export DISPLAY=:1
 x11vnc -display :1 -forever -passwd "$NEWPASS" -shared -rfbport 5901 &
 websockify --web=/opt/novnc 6080 localhost:5901 &
@@ -306,17 +298,8 @@ RUN cat >/root/.config/rox.sourceforge.net/ROX-Filer/pinboard <<'EOF'
 </pinboard>
 EOF
 
-# === ROX-Filer OPTIONS ===
-RUN cat >/root/.config/rox.sourceforge.net/ROX-Filer/Options <<'EOF'
-[rox]
-show_thumnails=1
-pinboard_size=48
-pinboard_show_icons=1
-pinboard_show_names=1
-pinboard_use_symlinks=0
-pinboard_warn_rename=1
-pinboard_warn_delete=1
-EOF
+# HAPUS Options file yang error
+RUN rm -f /root/.config/rox.sourceforge.net/ROX-Filer/Options
 
 EXPOSE 6080
 CMD ["/usr/local/bin/start.sh"]
