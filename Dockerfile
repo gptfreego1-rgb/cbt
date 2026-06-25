@@ -1,15 +1,16 @@
-FROM --platform=linux/amd64 alpine:3.18
+FROM --platform=linux/amd64 debian:12-slim
 
+ENV DEBIAN_FRONTEND=noninteractive
 ENV DISPLAY=:1
 ENV HOME=/root
 
 # Install semua packages
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     xvfb \
     x11vnc \
     novnc \
     websockify \
-    openjdk17-jre \
+    openjdk-17-jre \
     wget \
     unzip \
     bash \
@@ -18,7 +19,9 @@ RUN apk add --no-cache \
     rox-filer \
     yad \
     sudo \
-    && rm -rf /var/cache/apk/*
+    procps \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Setup directories
 RUN mkdir -p /root/.jwm /root/Desktop /root/.config/rox.sourceforge.net/ROX-Filer
@@ -44,7 +47,7 @@ RUN mkdir -p /root/.vnc && \
 RUN cat >/usr/local/bin/start.sh <<'EOF'
 #!/bin/bash
 echo "====================================="
-echo "  Alpine JWM + ROX-Filer Desktop"
+echo "  Debian JWM + ROX-Filer Desktop"
 echo "  MicroEmulator Avatar"
 echo "====================================="
 
