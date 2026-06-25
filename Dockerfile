@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 alpine:3.19
+FROM --platform=linux/amd64 alpine:3.18
 
 ENV DISPLAY=:1
 ENV HOME=/root
