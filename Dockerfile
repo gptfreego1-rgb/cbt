@@ -4,12 +4,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV DISPLAY=:1
 ENV HOME=/root
 
-# Install semua packages
+# Install base packages
 RUN apt-get update && apt-get install -y \
     xvfb \
     x11vnc \
-    novnc \
-    tigervnc-common \
     websockify \
     openjdk-17-jre \
     wget \
@@ -21,28 +19,37 @@ RUN apt-get update && apt-get install -y \
     yad \
     sudo \
     procps \
+    fontconfig \
+    fonts-dejavu \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Download noVNC from GitHub (since package may not be available)
+RUN wget -q -O /tmp/novnc.tar.gz \
+    https://github.com/novnc/noVNC/archive/refs/tags/v1.4.0.tar.gz \
+    && tar -xzf /tmp/novnc.tar.gz -C /opt/ \
+    && mv /opt/noVNC-1.4.0 /opt/novnc \
+    && rm /tmp/novnc.tar.gz
 
 # Setup directories
 RUN mkdir -p /root/.jwm /root/Desktop /root/.config/rox.sourceforge.net/ROX-Filer
 
 # Download MicroEmulator
 RUN wget -q -O /tmp/microemu.zip \
-https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/microemu/microemulator-2.0.4.zip \
-&& unzip /tmp/microemu.zip -d /opt/microemulator \
-&& rm /tmp/microemu.zip
+    https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/microemu/microemulator-2.0.4.zip \
+    && unzip /tmp/microemu.zip -d /opt/microemulator \
+    && rm /tmp/microemu.zip
 
 # Download Avatar
 RUN wget -q -O /opt/microemulator/avatar.jar \
-https://files.catbox.moe/6q19o1.zip
+    https://files.catbox.moe/6q19o1.zip
 
-# VNC Password default
+# Create VNC password file manually (without vncpasswd)
 RUN mkdir -p /root/.vnc && \
-    echo "123456" | vncpasswd -f > /root/.vnc/passwd && \
+    echo "123456" | x11vnc -storepasswd /root/.vnc/passwd && \
     chmod 600 /root/.vnc/passwd
 
-# === BUAT SEMUA SCRIPT ===
+# === SCRIPTS ===
 
 # 1. start.sh
 RUN cat >/usr/local/bin/start.sh <<'EOF'
@@ -67,7 +74,7 @@ sleep 2
 # Start x11vnc
 x11vnc -display :1 \
        -forever \
-       -passwd 123456 \
+       -rfbauth /root/.vnc/passwd \
        -shared \
        -rfbport 5901 \
        -nevershared \
@@ -76,7 +83,7 @@ x11vnc -display :1 \
 sleep 2
 
 # Start websockify (noVNC)
-websockify --web=/usr/share/novnc 6080 localhost:5901 &
+websockify --web=/opt/novnc 6080 localhost:5901 &
 sleep 2
 
 # Start JWM
@@ -144,12 +151,12 @@ pkill x11vnc 2>/dev/null
 pkill websockify 2>/dev/null
 sleep 1
 
-echo "$NEWPASS" | vncpasswd -f > "$PASS_FILE"
+echo "$NEWPASS" | x11vnc -storepasswd /root/.vnc/passwd
 chmod 600 "$PASS_FILE"
 
 export DISPLAY=:1
-x11vnc -display :1 -forever -passwd "$NEWPASS" -shared -rfbport 5901 &
-websockify --web=/usr/share/novnc 6080 localhost:5901 &
+x11vnc -display :1 -forever -rfbauth /root/.vnc/passwd -shared -rfbport 5901 &
+websockify --web=/opt/novnc 6080 localhost:5901 &
 
 kill $PROGRESS_PID 2>/dev/null
 
