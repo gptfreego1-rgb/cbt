@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV DISPLAY=:1
 ENV HOME=/root
 
-# Install base packages
+# Install semua packages
 RUN apt-get update && apt-get install -y \
     xvfb \
     x11vnc \
@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Download noVNC from GitHub (since package may not be available)
+# Download noVNC dari GitHub
 RUN wget -q -O /tmp/novnc.tar.gz \
     https://github.com/novnc/noVNC/archive/refs/tags/v1.4.0.tar.gz \
     && tar -xzf /tmp/novnc.tar.gz -C /opt/ \
@@ -44,12 +44,12 @@ RUN wget -q -O /tmp/microemu.zip \
 RUN wget -q -O /opt/microemulator/avatar.jar \
     https://files.catbox.moe/6q19o1.zip
 
-# Create VNC password file manually (without vncpasswd)
+# Create VNC password file manually (tanpa interaksi)
 RUN mkdir -p /root/.vnc && \
-    echo "123456" | x11vnc -storepasswd /root/.vnc/passwd && \
+    printf "123456\n123456\n" | x11vnc -storepasswd /root/.vnc/passwd && \
     chmod 600 /root/.vnc/passwd
 
-# === SCRIPTS ===
+# === BUAT SEMUA SCRIPT ===
 
 # 1. start.sh
 RUN cat >/usr/local/bin/start.sh <<'EOF'
@@ -151,11 +151,11 @@ pkill x11vnc 2>/dev/null
 pkill websockify 2>/dev/null
 sleep 1
 
-echo "$NEWPASS" | x11vnc -storepasswd /root/.vnc/passwd
+printf "$NEWPASS\n$NEWPASS\n" | x11vnc -storepasswd "$PASS_FILE"
 chmod 600 "$PASS_FILE"
 
 export DISPLAY=:1
-x11vnc -display :1 -forever -rfbauth /root/.vnc/passwd -shared -rfbport 5901 &
+x11vnc -display :1 -forever -rfbauth "$PASS_FILE" -shared -rfbport 5901 &
 websockify --web=/opt/novnc 6080 localhost:5901 &
 
 kill $PROGRESS_PID 2>/dev/null
