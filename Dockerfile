@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y \
     procps \
     fontconfig \
     fonts-dejavu \
+    openssl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -44,11 +45,10 @@ RUN wget -q -O /tmp/microemu.zip \
 RUN wget -q -O /opt/microemulator/avatar.jar \
     https://files.catbox.moe/6q19o1.zip
 
-# Create VNC password file manually (format x11vnc)
+# Create VNC password file manually using openssl
 # Password: 123456
 RUN mkdir -p /root/.vnc && \
-    echo -n "123456" | x11vnc -storepasswd /root/.vnc/passwd 2>/dev/null || \
-    (printf "123456\n123456\n" | x11vnc -storepasswd /root/.vnc/passwd 2>/dev/null) && \
+    printf "123456" | openssl passwd -1 -stdin > /root/.vnc/passwd && \
     chmod 600 /root/.vnc/passwd
 
 # === BUAT SEMUA SCRIPT ===
@@ -76,7 +76,7 @@ sleep 2
 # Start x11vnc
 x11vnc -display :1 \
        -forever \
-       -rfbauth /root/.vnc/passwd \
+       -passwd 123456 \
        -shared \
        -rfbport 5901 \
        -nevershared \
@@ -111,7 +111,6 @@ EOF
 # 2. password.sh
 RUN cat >/usr/local/bin/password.sh <<'EOF'
 #!/bin/bash
-PASS_FILE="/root/.vnc/passwd"
 
 NEWPASS=$(yad --title="Ganti Password VNC" \
     --width=400 \
@@ -153,11 +152,9 @@ pkill x11vnc 2>/dev/null
 pkill websockify 2>/dev/null
 sleep 1
 
-printf "$NEWPASS\n$NEWPASS\n" | x11vnc -storepasswd "$PASS_FILE" 2>/dev/null
-chmod 600 "$PASS_FILE"
-
+# Update password (x11vnc直接用-passwd参数,不需要file)
 export DISPLAY=:1
-x11vnc -display :1 -forever -rfbauth "$PASS_FILE" -shared -rfbport 5901 &
+x11vnc -display :1 -forever -passwd "$NEWPASS" -shared -rfbport 5901 &
 websockify --web=/opt/novnc 6080 localhost:5901 &
 
 kill $PROGRESS_PID 2>/dev/null
