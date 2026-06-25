@@ -2,88 +2,122 @@ FROM --platform=linux/amd64 alpine:3.19
 
 ENV DISPLAY=:1
 
-# Install SUPER MINIMAL (cuma yang bener-bener perlu)
+# Install packages
 RUN apk add --no-cache \
+    bash \
     xvfb \
     x11vnc \
     websockify \
     openjdk17-jre \
     wget \
     unzip \
-    bash \
-    && rm -rf /var/cache/apk/*
+    findutils
 
 # Download MicroEmulator
-RUN wget -q -O /tmp/microemu.zip \
-https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/microemu/microemulator-2.0.4.zip \
-&& unzip /tmp/microemu.zip -d /opt/microemulator \
-&& rm /tmp/microemu.zip
+RUN mkdir -p /opt && \
+    wget -q -O /tmp/microemu.zip \
+    https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/microemu/microemulator-2.0.4.zip && \
+    unzip -q /tmp/microemu.zip -d /opt && \
+    rm -f /tmp/microemu.zip
 
 # Download Avatar
-RUN wget -q -O /opt/microemulator/avatar.jar \
-https://files.catbox.moe/6q19o1.zip
+RUN mkdir -p /opt/avatar && \
+    wget -q -O /tmp/avatar.zip \
+    https://files.catbox.moe/6q19o1.zip && \
+    unzip -q /tmp/avatar.zip -d /opt/avatar && \
+    rm -f /tmp/avatar.zip
 
-# VNC Password default
+# Password VNC default
 RUN mkdir -p /root/.vnc && \
-    echo "123456" | vncpasswd -f > /root/.vnc/passwd && \
+    x11vnc -storepasswd 123456 /root/.vnc/passwd && \
     chmod 600 /root/.vnc/passwd
 
-# Script ganti password (via terminal doang, tanpa xterm)
-RUN cat >/usr/local/bin/ganti-password <<'EOF'
-#!/bin/bash
-echo ""
+# Script ganti password
+RUN cat >/usr/local/bin/password <<'EOF'
+#!/bin/sh
+
+echo
 echo "=== GANTI PASSWORD VNC ==="
-echo ""
-read -p "Password baru: " -s NEWPASS
-echo ""
-read -p "Konfirmasi: " -s CONFIRM
-echo ""
+echo
+
+printf "Password baru: "
+stty -echo
+read NEWPASS
+stty echo
+echo
+
+printf "Konfirmasi: "
+stty -echo
+read CONFIRM
+stty echo
+echo
 
 if [ "$NEWPASS" != "$CONFIRM" ]; then
-    echo "❌ Tidak sama!"
+    echo "Password tidak sama."
     exit 1
 fi
 
 if [ -z "$NEWPASS" ]; then
-    echo "❌ Kosong!"
+    echo "Password kosong."
     exit 1
 fi
 
 pkill x11vnc 2>/dev/null
-pkill websockify 2>/dev/null
-sleep 1
 
-echo "$NEWPASS" | vncpasswd -f > /root/.vnc/passwd
-chmod 600 /root/.vnc/passwd
+x11vnc -storepasswd "$NEWPASS" /root/.vnc/passwd
 
-export DISPLAY=:1
-x11vnc -display :1 -forever -passwd "$NEWPASS" -shared -rfbport 5901 &
-websockify --web=/usr/share/novnc 6080 localhost:5901 &
+x11vnc \
+-display :1 \
+-rfbauth /root/.vnc/passwd \
+-forever \
+-shared \
+-rfbport 5901 &
 
-echo "✅ Password: $NEWPASS"
+echo
+echo "Password berhasil diganti."
 EOF
 
 RUN chmod +x /usr/local/bin/ganti-password
 
-# Start script paling simpel
+# Script start
 RUN cat >/root/start.sh <<'EOF'
-#!/bin/bash
-Xvfb :1 -screen 0 800x600x24 &
-export DISPLAY=:1
-sleep 2
-java -jar /opt/microemulator/microemulator-2.0.4/microemulator.jar /opt/microemulator/avatar.jar &
-sleep 3
-x11vnc -display :1 -forever -passwd 123456 -shared -rfbport 5901 &
-websockify --web=/usr/share/novnc 6080 localhost:5901 &
+#!/bin/sh
 
-echo "✅ RUNNING"
-echo "VNC: http://localhost:6080/vnc.html"
-echo "Pass: 123456"
-echo "Ganti pass: docker exec -it <container> ganti-password"
+export DISPLAY=:1
+
+Xvfb :1 -screen 0 800x600x24 &
+sleep 2
+
+EMU=$(find /opt -name "microemulator.jar" | head -n1)
+GAME=$(find /opt/avatar -name "*.jar" | head -n1)
+
+echo "MicroEmulator : $EMU"
+echo "Game           : $GAME"
+
+java -jar "$EMU" "$GAME" &
+sleep 5
+
+x11vnc \
+-display :1 \
+-rfbauth /root/.vnc/passwd \
+-forever \
+-shared \
+-rfbport 5901 &
+
+websockify 6080 localhost:5901 &
+
+echo
+echo "=================================="
+echo "Container berjalan."
+echo "Port VNC : 6080"
+echo "Password : 123456"
+echo "=================================="
+
 tail -f /dev/null
 EOF
 
 RUN chmod +x /root/start.sh
 
 EXPOSE 6080
-CMD ["/bin/bash","/root/start.sh"]
+
+CMD ["/bin/sh","/root/start.sh"]
