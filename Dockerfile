@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV DISPLAY=:1
 ENV HOME=/root
 
-# Install semua packages
+# Install packages minimal
 RUN apt-get update && apt-get install -y \
     xvfb \
     x11vnc \
@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y \
     sudo \
     procps \
     fontconfig \
-    fonts-dejavu \
+    fonts-dejavu-core \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -44,14 +44,14 @@ RUN wget -q -O /tmp/microemu.zip \
 RUN wget -q -O /opt/microemulator/avatar.jar \
     https://files.catbox.moe/6q19o1.zip
 
-# === BUAT SEMUA SCRIPT ===
+# === SCRIPTS ===
 
-# 1. start.sh
+# 1. start.sh - OPTIMIZED
 RUN cat >/usr/local/bin/start.sh <<'EOF'
 #!/bin/bash
 echo "====================================="
 echo "  Debian JWM + ROX-Filer Desktop"
-echo "  MicroEmulator Avatar"
+echo "  MicroEmulator Avatar - Optimized"
 echo "====================================="
 
 # Cleanup
@@ -61,31 +61,46 @@ pkill websockify 2>/dev/null
 rm -f /tmp/.X1-lock
 rm -rf /tmp/.X11-unix/X1
 
-# Start Xvfb
-Xvfb :1 -screen 0 1024x768x24 -ac &
+# Start Xvfb dengan resolusi rendah & 16-bit
+Xvfb :1 -screen 0 800x600x16 -ac -nolisten tcp -noreset &
 export DISPLAY=:1
 sleep 2
 
-# Start x11vnc
+# Start x11vnc dengan optimasi bandwidth
 x11vnc -display :1 \
        -forever \
        -passwd 123456 \
        -shared \
        -rfbport 5901 \
-       -nevershared \
-       -nowf \
-       -auth /root/.Xauthority &
+       -auth /root/.Xauthority \
+       -compresslevel 9 \
+       -quality 5 \
+       -nocursor \
+       -noxdamage \
+       -xkb \
+       -skip_duplicate_frames \
+       -defer 50 \
+       -wait 30 \
+       -noncache \
+       -nodisplay_correction \
+       -nocursorpos \
+       -nosel \
+       -ncache 0 \
+       -speeds modem &
 sleep 2
 
-# Start websockify (noVNC)
-websockify --web=/opt/novnc 6080 localhost:5901 &
+# Start websockify dengan optimasi
+websockify --web=/opt/novnc 6080 localhost:5901 \
+    --heartbeat=60 \
+    --max-debug=0 \
+    --idle-timeout=600 &
 sleep 2
 
 # Start JWM
 jwm &
 sleep 2
 
-# Start ROX-Filer pinboard
+# Start ROX-Filer pinboard (tanpa refresh berlebihan)
 rox -p /root/.config/rox.sourceforge.net/ROX-Filer/pinboard &
 
 echo ""
@@ -94,11 +109,13 @@ echo "✅ SEMUA SUDAH JALAN!"
 echo "====================================="
 echo "🌐 Web VNC: http://localhost:6080/vnc.html"
 echo "🔑 Password: 123456"
-echo ""
 echo "📌 Desktop: Avatar | Ganti Password | Terminal | Logout"
 echo "====================================="
 
-tail -f /dev/null
+# Monitor CPU usage minimal
+while true; do
+    sleep 60
+done
 EOF
 
 # 2. password.sh
@@ -106,8 +123,8 @@ RUN cat >/usr/local/bin/password.sh <<'EOF'
 #!/bin/bash
 
 NEWPASS=$(yad --title="Ganti Password VNC" \
-    --width=400 \
-    --height=150 \
+    --width=350 \
+    --height=140 \
     --form \
     --field="Password Baru":H \
     --field="Konfirmasi Password":H \
@@ -146,15 +163,20 @@ pkill websockify 2>/dev/null
 sleep 1
 
 export DISPLAY=:1
-x11vnc -display :1 -forever -passwd "$NEWPASS" -shared -rfbport 5901 &
-websockify --web=/opt/novnc 6080 localhost:5901 &
+x11vnc -display :1 -forever -passwd "$NEWPASS" -shared -rfbport 5901 \
+    -compresslevel 9 -quality 5 -nocursor -noxdamage -skip_duplicate_frames \
+    -defer 50 -wait 30 -noncache -nodisplay_correction -nocursorpos \
+    -nosel -ncache 0 -speeds modem &
+
+websockify --web=/opt/novnc 6080 localhost:5901 \
+    --heartbeat=60 --max-debug=0 --idle-timeout=600 &
 
 kill $PROGRESS_PID 2>/dev/null
 
 yad --title="Sukses" --width=350 --height=120 --text="✅ Password berhasil diganti!\n\n🔑 Password baru: $NEWPASS" --button="OK:0" --image="dialog-information"
 EOF
 
-# 3. avatar.sh
+# 3. avatar.sh - Optimized JVM
 RUN cat >/usr/local/bin/avatar.sh <<'EOF'
 #!/bin/bash
 export DISPLAY=:1
@@ -164,7 +186,13 @@ if pgrep -f "microemulator.jar" > /dev/null; then
     exit 0
 fi
 
-java -Xms64m -Xmx128m -jar -noverify \
+# JVM optimized for low memory
+java -Xms32m -Xmx64m -XX:+UseSerialGC -XX:+DisableExplicitGC \
+    -Dawt.toolkit=sun.awt.X11.XToolkit \
+    -Djava.awt.headless=false \
+    -Dawt.useSystemAAFontSettings=false \
+    -Dswing.defaultlaf=javax.swing.plaf.metal.MetalLookAndFeel \
+    -jar -noverify \
     /opt/microemulator/microemulator-2.0.4/microemulator.jar \
     /opt/microemulator/avatar.jar &
 
@@ -225,11 +253,11 @@ EOF
 
 RUN chmod +x /root/Desktop/*.desktop
 
-# === JWM CONFIG ===
+# === JWM CONFIG - OPTIMIZED ===
 RUN cat >/root/.jwmrc <<'EOF'
 <?xml version="1.0"?>
 <JWM>
-    <RootMenu label="Menu" height="24">
+    <RootMenu label="Menu" height="20">
         <Program label="Terminal" icon="terminal">xterm</Program>
         <Program label="Avatar" icon="applications-games">/usr/local/bin/avatar.sh</Program>
         <Program label="Ganti Password" icon="system-lock-screen">/usr/local/bin/password.sh</Program>
@@ -241,21 +269,21 @@ RUN cat >/root/.jwmrc <<'EOF'
     </RootMenu>
 
     <TaskList/>
-    <Tray x="0" y="-1" height="28" autohide="off">
+    <Tray x="0" y="-1" height="24" autohide="off">
         <TrayButton icon="menu">root:3</TrayButton>
-        <Spacer width="5"/>
+        <Spacer width="3"/>
         <TaskList/>
         <Dock/>
         <Clock format="%H:%M">xclock</Clock>
     </Tray>
 
     <WindowStyle>
-        <Font>DejaVu Sans-10</Font>
-        <Width>4</Width>
-        <Height>20</Height>
+        <Font>DejaVu Sans-9</Font>
+        <Width>2</Width>
+        <Height>18</Height>
         <Active>
             <Foreground>#ffffff</Foreground>
-            <Background>#3465a4</Background>
+            <Background>#2d5a88</Background>
         </Active>
         <Inactive>
             <Foreground>#888888</Foreground>
@@ -264,41 +292,34 @@ RUN cat >/root/.jwmrc <<'EOF'
     </WindowStyle>
 
     <Desktop>
-        <Background type="solid">#2e3436</Background>
+        <Background type="solid">#1a1a2e</Background>
     </Desktop>
 
     <Key key="Up">up</Key>
     <Key key="Down">down</Key>
     <Key key="Left">left</Key>
     <Key key="Right">right</Key>
-    <Key key="h">left</Key>
-    <Key key="j">down</Key>
-    <Key key="k">up</Key>
-    <Key key="l">right</Key>
     <Key key="Return">select</Key>
     <Key key="Escape">escape</Key>
     <Key key="F12">root:3</Key>
-
-    <Program label="xterm" icon="terminal">xterm</Program>
-    <Program label="xcalc" icon="accessories-calculator">xcalc</Program>
 
     <StartupCommand>rox -p /root/.config/rox.sourceforge.net/ROX-Filer/pinboard</StartupCommand>
 </JWM>
 EOF
 
-# === ROX-Filer PINBOARD ===
+# === ROX-Filer PINBOARD - OPTIMIZED ===
 RUN cat >/root/.config/rox.sourceforge.net/ROX-Filer/pinboard <<'EOF'
 <?xml version="1.0"?>
 <pinboard>
-  <backdrop style="Scaled">/usr/share/backgrounds/default.png</backdrop>
+  <backdrop style="Solid">#1a1a2e</backdrop>
   <icon x="20" y="20" label="Avatar">/root/Desktop/Avatar.desktop</icon>
-  <icon x="20" y="90" label="Ganti Password">/root/Desktop/Ganti-Password.desktop</icon>
-  <icon x="20" y="160" label="Terminal">/root/Desktop/Terminal.desktop</icon>
-  <icon x="20" y="230" label="Logout">/root/Desktop/Logout.desktop</icon>
+  <icon x="20" y="80" label="Ganti Password">/root/Desktop/Ganti-Password.desktop</icon>
+  <icon x="20" y="140" label="Terminal">/root/Desktop/Terminal.desktop</icon>
+  <icon x="20" y="200" label="Logout">/root/Desktop/Logout.desktop</icon>
 </pinboard>
 EOF
 
-# HAPUS Options file yang error
+# Hapus Options file yang error dan biarkan ROX-Filer buat sendiri
 RUN rm -f /root/.config/rox.sourceforge.net/ROX-Filer/Options
 
 EXPOSE 6080
