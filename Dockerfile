@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y \
     procps \
     fontconfig \
     fonts-dejavu-core \
+    imagemagick \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -44,6 +45,10 @@ RUN wget -q -O /tmp/microemu.zip \
 RUN wget -q -O /opt/microemulator/avatar.jar \
     https://files.catbox.moe/6q19o1.zip
 
+# Create solid color background image
+RUN mkdir -p /usr/share/backgrounds && \
+    convert -size 800x600 xc:'#1a1a2e' /usr/share/backgrounds/default.png
+
 # === SCRIPTS ===
 
 # 1. start.sh - OPTIMIZED & FIXED
@@ -66,7 +71,7 @@ Xvfb :1 -screen 0 800x600x16 -ac -nolisten tcp -noreset &
 export DISPLAY=:1
 sleep 2
 
-# Start x11vnc dengan optimasi bandwidth (opsi yang valid)
+# Start x11vnc dengan optimasi bandwidth
 x11vnc -display :1 \
        -forever \
        -passwd 123456 \
@@ -83,7 +88,7 @@ x11vnc -display :1 \
        -norepeat &
 sleep 2
 
-# Start websockify (tanpa opsi yang tidak dikenal)
+# Start websockify
 websockify --web=/opt/novnc 6080 localhost:5901 &
 sleep 2
 
@@ -103,11 +108,10 @@ echo "🔑 Password: 123456"
 echo "📌 Desktop: Avatar | Ganti Password | Terminal | Logout"
 echo "====================================="
 
-# Keep running
 tail -f /dev/null
 EOF
 
-# 2. password.sh - FIXED
+# 2. password.sh
 RUN cat >/usr/local/bin/password.sh <<'EOF'
 #!/bin/bash
 
@@ -239,7 +243,7 @@ EOF
 
 RUN chmod +x /root/Desktop/*.desktop
 
-# === JWM CONFIG - FIXED XML ===
+# === JWM CONFIG ===
 RUN cat >/root/.jwmrc <<'EOF'
 <?xml version="1.0"?>
 <JWM>
@@ -296,11 +300,11 @@ RUN cat >/root/.jwmrc <<'EOF'
 </JWM>
 EOF
 
-# === ROX-Filer PINBOARD ===
+# === ROX-Filer PINBOARD - FIXED ===
 RUN cat >/root/.config/rox.sourceforge.net/ROX-Filer/pinboard <<'EOF'
 <?xml version="1.0"?>
 <pinboard>
-  <backdrop style="Solid">#1a1a2e</backdrop>
+  <backdrop style="Scaled">/usr/share/backgrounds/default.png</backdrop>
   <icon x="20" y="20" label="Avatar">/root/Desktop/Avatar.desktop</icon>
   <icon x="20" y="80" label="Ganti Password">/root/Desktop/Ganti-Password.desktop</icon>
   <icon x="20" y="140" label="Terminal">/root/Desktop/Terminal.desktop</icon>
