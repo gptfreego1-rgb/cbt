@@ -38,7 +38,7 @@ RUN mkdir -p /opt/microemulator \
     && wget -q https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/microemu/microemulator-2.0.4.zip -O /tmp/microemulator.zip \
     && unzip -q /tmp/microemulator.zip -d /opt/microemulator \
     && rm /tmp/microemulator.zip \
-    && chmod +x /opt/microemulator/microemulator.jar
+    && chmod +x /opt/microemulator/microemulator-2.0.4/microemulator.jar
 
 # Download Avatar JAR
 RUN wget -q https://github.com/microemu/microemu/releases/download/v2.0.4/avatar.jar -O /opt/microemulator/avatar.jar
