@@ -60,6 +60,10 @@ RUN cat >/root/.jwmrc <<'EOF'
         microemu
     </Program>
 
+    <Program label="Terminal">
+        xterm
+    </Program>
+
     <Separator/>
 
     <Exit label="Exit"/>
