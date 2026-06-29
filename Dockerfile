@@ -22,9 +22,8 @@ RUN apk add --no-cache \
     ttf-dejavu \
     mesa-dri-gallium \
     python3 \
-    py3-numpy \
-    && python3 -m ensurepip --upgrade \
-    && pip3 install --no-cache-dir websockify \
+    py3-pip \
+    && pip3 install --break-system-packages --no-cache-dir websockify \
     && rm -rf /var/cache/apk/* /tmp/* /var/tmp/*
 
 # Setup noVNC
