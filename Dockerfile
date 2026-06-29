@@ -1,8 +1,7 @@
 FROM alpine:latest
 
 ENV DISPLAY=:1 \
-    HOME=/root \
-    JAVA_OPTS="-Xms16m -Xmx64m -XX:+UseSerialGC -XX:MaxRAM=64m"
+    HOME=/root
 
 # Install packages
 RUN apk add --no-cache \
@@ -11,7 +10,6 @@ RUN apk add --no-cache \
     xvfb \
     x11vnc \
     jwm \
-    xterm \
     wget \
     unzip \
     ttf-dejavu \
@@ -29,7 +27,7 @@ RUN mkdir -p /opt/microemulator \
 RUN wget -q https://files.catbox.moe/sllphh.ja \
     -O /opt/microemulator/avatar.jar
 
-# Launcher
+# Launcher MicroEmulator
 RUN cat >/usr/local/bin/microemu <<'EOF'
 #!/bin/sh
 exec java \
@@ -44,11 +42,13 @@ EOF
 
 RUN chmod +x /usr/local/bin/microemu
 
-# JWM
+# Konfigurasi JWM
 RUN cat >/root/.jwmrc <<'EOF'
 <?xml version="1.0"?>
 
 <JWM>
+
+<StartupCommand>xsetroot -solid black</StartupCommand>
 
 <RootMenu onroot="12">
 
@@ -57,11 +57,7 @@ RUN cat >/root/.jwmrc <<'EOF'
     </Program>
 
     <Program label="MicroEmulator">
-        xterm -e microemu
-    </Program>
-
-    <Program label="Terminal">
-        xterm
+        microemu
     </Program>
 
     <Separator/>
@@ -81,14 +77,16 @@ RUN cat >/root/.jwmrc <<'EOF'
     </TrayButton>
 
     <TrayButton label="MicroEmulator">
-        exec:xterm -e microemu
+        exec:microemu
     </TrayButton>
 
     <Spacer/>
 
-    <Clock/>
+    <Clock format="%H:%M"/>
 
 </Tray>
+
+<Desktops width="1" height="1"/>
 
 </JWM>
 EOF
