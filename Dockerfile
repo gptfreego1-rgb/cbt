@@ -13,7 +13,7 @@ ENV DISPLAY=:1 \
 RUN apk add --no-cache \
     openjdk17-jre \
     firefox \
-    tigervnc-server \
+    tigervnc \
     jwm \
     xterm \
     wget \
