@@ -1,90 +1,101 @@
 FROM alpine:latest
 
-# Set environment variables
 ENV DISPLAY=:1 \
-    VNC_PORT=5901 \
-    NOVNC_PORT=6080 \
-    VNC_RESOLUTION=800x600 \
-    VNC_DEPTH=16 \
-    JAVA_OPTS="-Xms16m -Xmx64m -XX:+UseSerialGC -XX:MaxRAM=64m" \
-    HOME=/root
+    HOME=/root \
+    JAVA_OPTS="-Xms16m -Xmx64m -XX:+UseSerialGC -XX:MaxRAM=64m"
 
-# Install only essential packages
+# Install packages
 RUN apk add --no-cache \
     openjdk17-jre \
     firefox \
-    tigervnc \
+    xvfb \
+    x11vnc \
     jwm \
     xterm \
     wget \
     unzip \
-    dbus-x11 \
     ttf-dejavu \
-    mesa-dri-gallium \
-    python3 \
-    py3-pip \
-    && pip3 install --break-system-packages --no-cache-dir websockify \
-    && rm -rf /var/cache/apk/* /tmp/* /var/tmp/*
+    fontconfig \
+    mesa-dri-gallium
 
-# Setup noVNC
-RUN wget -q https://github.com/novnc/noVNC/archive/refs/tags/v1.4.0.tar.gz -O /tmp/novnc.tar.gz \
-    && mkdir -p /opt/novnc \
-    && tar -xzf /tmp/novnc.tar.gz -C /opt/novnc --strip-components=1 \
-    && rm /tmp/novnc.tar.gz \
-    && ln -s /opt/novnc/vnc.html /opt/novnc/index.html
-
-# Setup MicroEmulator
+# Download MicroEmulator
 RUN mkdir -p /opt/microemulator \
-    && wget -q https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/microemu/microemulator-2.0.4.zip -O /tmp/microemulator.zip \
+    && wget -q https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/microemu/microemulator-2.0.4.zip \
+       -O /tmp/microemulator.zip \
     && unzip -q /tmp/microemulator.zip -d /opt/microemulator \
-    && rm /tmp/microemulator.zip \
-    && chmod +x /opt/microemulator/microemulator-2.0.4/microemulator.jar
+    && rm -f /tmp/microemulator.zip
 
 # Download Avatar JAR
-RUN wget -q https://files.catbox.moe/sllphh.ja -O /opt/microemulator/avatar.jar
+RUN wget -q https://files.catbox.moe/sllphh.ja \
+    -O /opt/microemulator/avatar.jar
 
-# Create minimal JWM configuration
-RUN mkdir -p /root/.jwm \
-    && echo '<?xml version="1.0"?>' > /root/.jwm/jwmrc \
-    && echo '<JWM>' >> /root/.jwm/jwmrc \
-    && echo '  <RootMenu onroot="12"/>' >> /root/.jwm/jwmrc \
-    && echo '  <Tray x="0" y="-1" autohide="off">' >> /root/.jwm/jwmrc \
-    && echo '    <TrayButton label="Menu">root:1</TrayButton>' >> /root/.jwm/jwmrc \
-    && echo '    <Spacer width="2"/>' >> /root/.jwm/jwmrc \
-    && echo '    <TrayButton label="Firefox">exec:firefox</TrayButton>' >> /root/.jwm/jwmrc \
-    && echo '    <TrayButton label="MicroEmulator">exec:xterm -e java -jar /opt/microemulator/microemulator.jar /opt/microemulator/avatar.jar</TrayButton>' >> /root/.jwm/jwmrc \
-    && echo '    <Spacer/>' >> /root/.jwm/jwmrc \
-    && echo '    <Clock/>' >> /root/.jwm/jwmrc \
-    && echo '  </Tray>' >> /root/.jwm/jwmrc \
-    && echo '  <Menu label="Applications" icon="folder.png">' >> /root/.jwm/jwmrc \
-    && echo '    <Program label="Firefox">firefox</Program>' >> /root/.jwm/jwmrc \
-    && echo '    <Program label="MicroEmulator">xterm -e java -jar /opt/microemulator/microemulator.jar /opt/microemulator/avatar.jar</Program>' >> /root/.jwm/jwmrc \
-    && echo '    <Program label="Terminal">xterm</Program>' >> /root/.jwm/jwmrc \
-    && echo '  </Menu>' >> /root/.jwm/jwmrc \
-    && echo '</JWM>' >> /root/.jwm/jwmrc
+# JWM configuration
+RUN mkdir -p /root/.jwm && cat > /root/.jwm/jwmrc <<'EOF'
+<?xml version="1.0"?>
+<JWM>
 
-# Create minimal VNC startup script
-RUN echo '#!/bin/sh' > /startup.sh \
-    && echo 'export DISPLAY=:1' >> /startup.sh \
-    && echo 'mkdir -p /root/.vnc' >> /startup.sh \
-    && echo 'echo "#!/bin/sh" > /root/.vnc/xstartup' >> /startup.sh \
-    && echo 'echo "jwm &" >> /root/.vnc/xstartup' >> /startup.sh \
-    && echo 'chmod +x /root/.vnc/xstartup' >> /startup.sh \
-    && echo '' >> /startup.sh \
-    && echo '# Start VNC server' >> /startup.sh \
-    && echo 'vncserver :1 -geometry 800x600 -depth 16 -localhost -SecurityTypes None' >> /startup.sh \
-    && echo '' >> /startup.sh \
-    && echo '# Start noVNC with websockify' >> /startup.sh \
-    && echo 'websockify --web /opt/novnc 6080 localhost:5901' >> /startup.sh \
-    && chmod +x /startup.sh
+<RootMenu onroot="12">
+    <Program label="Firefox">
+        firefox
+    </Program>
 
-# Clean up unnecessary files
-RUN rm -rf /var/cache/apk/* /tmp/* /var/tmp/* /root/.cache/* \
-    && find /usr/share -type d -name doc -exec rm -rf {} + 2>/dev/null || true \
-    && find /usr/share -type d -name man -exec rm -rf {} + 2>/dev/null || true \
-    && find /usr/share -type d -name locale -exec rm -rf {} + 2>/dev/null || true
+    <Program label="MicroEmulator">
+        xterm -e sh -c 'java $JAVA_OPTS -noverify -jar /opt/microemulator/microemulator-2.0.4/microemulator.jar /opt/microemulator/avatar.jar'
+    </Program>
 
-EXPOSE 6080
+    <Program label="Terminal">
+        xterm
+    </Program>
+</RootMenu>
+
+<Tray x="0" y="-1">
+    <TrayButton label="Menu">root:1</TrayButton>
+
+    <TrayButton label="Firefox">
+        exec:firefox
+    </TrayButton>
+
+    <TrayButton label="MicroEmulator">
+        exec:xterm -e sh -c 'java $JAVA_OPTS -noverify -jar /opt/microemulator/microemulator-2.0.4/microemulator.jar /opt/microemulator/avatar.jar'
+    </TrayButton>
+
+    <Spacer/>
+
+    <Clock/>
+</Tray>
+
+</JWM>
+EOF
+
+# Startup script
+RUN cat > /startup.sh <<'EOF'
+#!/bin/sh
+
+export DISPLAY=:1
+
+Xvfb :1 -screen 0 800x600x16 &
+
+sleep 2
+
+jwm &
+
+exec x11vnc \
+    -display :1 \
+    -forever \
+    -shared \
+    -nopw \
+    -rfbport 5901
+EOF
+
+RUN chmod +x /startup.sh
+
+# Cleanup
+RUN rm -rf \
+    /var/cache/apk/* \
+    /tmp/* \
+    /root/.cache
+
+EXPOSE 5901
 
 WORKDIR /root
 
