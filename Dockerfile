@@ -60,20 +60,24 @@ x11vnc -storepasswd /root/.vnc/passwd
 echo
 echo "Restarting VNC..."
 
-killall x11vnc
+pkill x11vnc 2>/dev/null || true
 
-sleep 1
+sleep 2
 
 x11vnc \
 -display :1 \
 -rfbport 5901 \
 -rfbauth /root/.vnc/passwd \
 -forever \
--shared &
+-shared \
+-noxdamage \
+-nowf >/tmp/x11vnc.log 2>&1 &
 
 echo
-echo "Done."
-sleep 2
+echo "Password changed successfully."
+echo
+echo "Press ENTER to close..."
+read
 '
 EOF
 
@@ -144,23 +148,30 @@ export DISPLAY=:1
 
 mkdir -p /root/.vnc
 
-# Buat password default jika belum ada
+# Password default
 if [ ! -f /root/.vnc/passwd ]; then
     x11vnc -storepasswd 123456 /root/.vnc/passwd >/dev/null
 fi
 
-Xvfb :1 -screen 0 800x600x16 &
+# Bersihkan sisa lock
+rm -f /tmp/.X1-lock
+rm -rf /tmp/.X11-unix/X1
 
+Xvfb :1 -screen 0 800x600x16 &
 sleep 2
 
 jwm &
 
-exec x11vnc \
+x11vnc \
 -display :1 \
 -rfbport 5901 \
 -rfbauth /root/.vnc/passwd \
 -forever \
--shared
+-shared \
+-noxdamage \
+-nowf &
+
+wait $!
 EOF
 
 RUN chmod +x /startup.sh
