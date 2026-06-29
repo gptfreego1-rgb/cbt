@@ -14,6 +14,7 @@ RUN apk add --no-cache \
     unzip \
     ttf-dejavu \
     fontconfig \
+    xterm \
     mesa-dri-gallium
 
 # Download MicroEmulator
