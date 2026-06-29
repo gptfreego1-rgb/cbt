@@ -28,7 +28,7 @@ RUN mkdir -p /opt/microemulator \
 RUN wget -q https://files.catbox.moe/sllphh.ja \
     -O /opt/microemulator/avatar.jar
 
-# Launcher MicroEmulator
+# MicroEmulator launcher
 RUN cat >/usr/local/bin/microemu <<'EOF'
 #!/bin/sh
 exec java \
@@ -43,7 +43,43 @@ EOF
 
 RUN chmod +x /usr/local/bin/microemu
 
-# Konfigurasi JWM
+# Change VNC Password
+RUN cat >/usr/local/bin/change-vnc-password <<'EOF'
+#!/bin/sh
+
+mkdir -p /root/.vnc
+
+xterm -title "Change VNC Password" -e sh -c '
+
+echo
+echo "=== Change VNC Password ==="
+echo
+
+x11vnc -storepasswd /root/.vnc/passwd
+
+echo
+echo "Restarting VNC..."
+
+killall x11vnc
+
+sleep 1
+
+x11vnc \
+-display :1 \
+-rfbport 5901 \
+-rfbauth /root/.vnc/passwd \
+-forever \
+-shared &
+
+echo
+echo "Done."
+sleep 2
+'
+EOF
+
+RUN chmod +x /usr/local/bin/change-vnc-password
+
+# JWM
 RUN cat >/root/.jwmrc <<'EOF'
 <?xml version="1.0"?>
 
@@ -63,6 +99,10 @@ RUN cat >/root/.jwmrc <<'EOF'
 
     <Program label="Terminal">
         xterm
+    </Program>
+
+    <Program label="Change VNC Password">
+        change-vnc-password
     </Program>
 
     <Separator/>
@@ -102,6 +142,13 @@ RUN cat >/startup.sh <<'EOF'
 
 export DISPLAY=:1
 
+mkdir -p /root/.vnc
+
+# Buat password default jika belum ada
+if [ ! -f /root/.vnc/passwd ]; then
+    x11vnc -storepasswd 123456 /root/.vnc/passwd >/dev/null
+fi
+
 Xvfb :1 -screen 0 800x600x16 &
 
 sleep 2
@@ -109,11 +156,11 @@ sleep 2
 jwm &
 
 exec x11vnc \
-    -display :1 \
-    -rfbport 5901 \
-    -forever \
-    -shared \
-    -nopw
+-display :1 \
+-rfbport 5901 \
+-rfbauth /root/.vnc/passwd \
+-forever \
+-shared
 EOF
 
 RUN chmod +x /startup.sh
