@@ -35,7 +35,7 @@ RUN wget -q https://github.com/novnc/noVNC/archive/refs/tags/v1.4.0.tar.gz -O /t
 
 # Setup MicroEmulator
 RUN mkdir -p /opt/microemulator \
-    && wget -q https://github.com/microemu/microemu/releases/download/v2.0.4/microemulator-2.0.4.zip -O /tmp/microemulator.zip \
+    && wget -q https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/microemu/microemulator-2.0.4.zip -O /tmp/microemulator.zip \
     && unzip -q /tmp/microemulator.zip -d /opt/microemulator \
     && rm /tmp/microemulator.zip \
     && chmod +x /opt/microemulator/microemulator.jar
