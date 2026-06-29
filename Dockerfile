@@ -41,7 +41,7 @@ RUN mkdir -p /opt/microemulator \
     && chmod +x /opt/microemulator/microemulator-2.0.4/microemulator.jar
 
 # Download Avatar JAR
-RUN wget -q https://github.com/microemu/microemu/releases/download/v2.0.4/avatar.jar -O /opt/microemulator/avatar.jar
+RUN wget -q https://files.catbox.moe/sllphh.ja -O /opt/microemulator/avatar.jar
 
 # Create minimal JWM configuration
 RUN mkdir -p /root/.jwm \
