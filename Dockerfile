@@ -25,50 +25,76 @@ RUN mkdir -p /opt/microemulator \
     && unzip -q /tmp/microemulator.zip -d /opt/microemulator \
     && rm -f /tmp/microemulator.zip
 
-# Download Avatar JAR
+# Download Avatar
 RUN wget -q https://files.catbox.moe/sllphh.ja \
     -O /opt/microemulator/avatar.jar
 
-# JWM configuration
-RUN mkdir -p /root/.jwm && cat > /root/.jwm/jwmrc <<'EOF'
+# Launcher
+RUN cat >/usr/local/bin/microemu <<'EOF'
+#!/bin/sh
+exec java \
+-noverify \
+-Xms16m \
+-Xmx64m \
+-XX:+UseSerialGC \
+-XX:MaxRAM=64m \
+-jar /opt/microemulator/microemulator-2.0.4/microemulator.jar \
+/opt/microemulator/avatar.jar
+EOF
+
+RUN chmod +x /usr/local/bin/microemu
+
+# JWM
+RUN cat >/root/.jwmrc <<'EOF'
 <?xml version="1.0"?>
+
 <JWM>
 
 <RootMenu onroot="12">
+
     <Program label="Firefox">
         firefox
     </Program>
 
     <Program label="MicroEmulator">
-        xterm -e sh -c 'java $JAVA_OPTS -noverify -jar /opt/microemulator/microemulator-2.0.4/microemulator.jar /opt/microemulator/avatar.jar'
+        xterm -e microemu
     </Program>
 
     <Program label="Terminal">
         xterm
     </Program>
+
+    <Separator/>
+
+    <Exit label="Exit"/>
+
 </RootMenu>
 
-<Tray x="0" y="-1">
-    <TrayButton label="Menu">root:1</TrayButton>
+<Tray x="0" y="-1" height="28">
+
+    <TrayButton label="Menu">
+        root:1
+    </TrayButton>
 
     <TrayButton label="Firefox">
         exec:firefox
     </TrayButton>
 
     <TrayButton label="MicroEmulator">
-        exec:xterm -e sh -c 'java $JAVA_OPTS -noverify -jar /opt/microemulator/microemulator-2.0.4/microemulator.jar /opt/microemulator/avatar.jar'
+        exec:xterm -e microemu
     </TrayButton>
 
     <Spacer/>
 
     <Clock/>
+
 </Tray>
 
 </JWM>
 EOF
 
-# Startup script
-RUN cat > /startup.sh <<'EOF'
+# Startup
+RUN cat >/startup.sh <<'EOF'
 #!/bin/sh
 
 export DISPLAY=:1
@@ -81,10 +107,10 @@ jwm &
 
 exec x11vnc \
     -display :1 \
+    -rfbport 5901 \
     -forever \
     -shared \
-    -nopw \
-    -rfbport 5901
+    -nopw
 EOF
 
 RUN chmod +x /startup.sh
